@@ -82,11 +82,24 @@ final class Central {
                 )
             },
             onCharacteristicNotificationStateUpdate: papply(weak: self) { central, characteristic, error in
-                central.characteristicNotifyRegistry.updateTask(
-                    key: QualifiedCharacteristic(characteristic),
-                    action: { $0.complete(error: error) }
-                )
-            },
+                let err: Error? = {
+                     guard let nserror = error as NSError?
+                     else { return error }
+                     if (nserror.domain == "CBATTErrorDomain"
+                         && (nserror.code == 3
+                             || nserror.code == 128
+                             || nserror.code == 10 && (characteristic.descriptors?.isEmpty ?? true) == true
+                         )) {
+                         return nil
+                     }
+                     return error
+                 }()
+
+                 central.characteristicNotifyRegistry.updateTask(
+                     key: QualifiedCharacteristic(characteristic),
+                     action: { $0.complete(error: err) }
+                 )
+             },
             onCharacteristicValueUpdate: papply(weak: self) { central, characteristic, error in
                 onCharacteristicValueUpdate(central, QualifiedCharacteristic(characteristic), characteristic.value, error)
             },
